@@ -17,7 +17,7 @@ public class DataReader {
     public static List<Employee> readData(){
         try {
             FileReader fileReader = new FileReader("test_employees.csv");
-            CSVReader csvReader = new CSVReaderBuilder(fileReader).withSkipLines(1).build();
+            CSVReader csvReader = new CSVReaderBuilder(fileReader).build();
 
             List<String[]> content = csvReader.readAll();
             List<Employee> employees = new ArrayList<>();

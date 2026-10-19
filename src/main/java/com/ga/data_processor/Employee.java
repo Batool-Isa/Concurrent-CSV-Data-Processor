@@ -14,4 +14,6 @@ public class Employee {
     private LocalDate date;
     private String position;
     private double projectPercentage;
+    private boolean processed = false;
+
 }
