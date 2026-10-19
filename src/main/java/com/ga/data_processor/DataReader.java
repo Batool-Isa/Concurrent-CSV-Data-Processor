@@ -2,6 +2,7 @@ package com.ga.data_processor;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
+import org.springframework.stereotype.Service;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -10,8 +11,10 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+
+@Service
 public class DataReader {
-    public static void readData(){
+    public static List<Employee> readData(){
         try {
             FileReader fileReader = new FileReader("test_employees.csv");
             CSVReader csvReader = new CSVReaderBuilder(fileReader).withSkipLines(1).build();
@@ -29,6 +32,7 @@ public class DataReader {
             employees.add(emp);
             }
             System.out.println(employees.size());
+            return employees;
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
