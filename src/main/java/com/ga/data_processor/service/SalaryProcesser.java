@@ -1,6 +1,7 @@
-package com.ga.data_processor;
+package com.ga.data_processor.service;
 
 
+import com.ga.data_processor.model.Employee;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -22,21 +23,18 @@ public class SalaryProcesser {
     }
 
     public void process() {
+        List<Employee> employeeList = dataReader.readData();
+        if (employeeList == null || employeeList.isEmpty()) {
+            System.out.println("No Employees found!!!");
+            return;
+        }
+
         // create a new thread pool with only 3 reusable threads
         ExecutorService executorService = Executors.newFixedThreadPool(3);
 
-
-        List<Employee> employeeList = dataReader.readData();
         for (int i = 0; i < employeeList.size(); i++) {
             final int empCounter = i;
             executorService.submit(() -> {
-
-                if (employeeList == null ||employeeList.isEmpty()) {
-                    System.out.println("No Employees found!!!");
-                    executorService.shutdown();
-                    return;
-                }
-
                 try {
 
                     Employee emp = employeeList.get(empCounter);
@@ -54,7 +52,7 @@ public class SalaryProcesser {
                     System.out.println("emp " + empCounter + " completed processing");
 
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    Thread.currentThread().interrupt();
                 }
             });
         }
@@ -62,8 +60,12 @@ public class SalaryProcesser {
         executorService.shutdown();
         // Block main thread for 1 min
         try {
-            executorService.awaitTermination(1, TimeUnit.MINUTES);
+            if (!executorService.awaitTermination(1, TimeUnit.MINUTES)) {
+                System.out.println("Processing timed out, stopping remaining tasks.");
+                executorService.shutdownNow();
+            }
         } catch (InterruptedException e) {
+            executorService.shutdownNow();
             Thread.currentThread().interrupt();
         }
         System.out.println("All Employees Processed!");
@@ -73,12 +75,13 @@ public class SalaryProcesser {
     }
 
 
-    public static double calculateRaise(Employee employee) {
+    public  double calculateRaise(Employee employee) {
         double percentage = 0;
         double total = 0;
         if (employee.getProjectPercentage() < 0.6) {
             percentage = 0;
         } else {
+
             LocalDate joinedDate = employee.getDate();
             LocalDate today = LocalDate.now();
             Period period = Period.between(joinedDate, today);
@@ -88,12 +91,16 @@ public class SalaryProcesser {
             }
 
             String position = employee.getPosition();
-            if (position.equals("Employee")) {
+            if ("Employee".equals(position)) {
                 percentage += 0.01;
-            } else if (position.equals("Manager")) {
+            } else if ("Manager".equals(position)) {
                 percentage += 0.02;
-            } else if(position.equals("Director")){
+            } else if("Director".equals(position)){
                 percentage += 0.05;
+            }
+
+            if(employee.getProjectPercentage() > 0.8){
+                percentage *= 1.5;
             }
         }
         total = employee.getSalary() + (employee.getSalary() * percentage);

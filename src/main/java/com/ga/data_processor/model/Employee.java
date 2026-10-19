@@ -1,4 +1,4 @@
-package com.ga.data_processor;
+package com.ga.data_processor.model;
 
 import lombok.Getter;
 import lombok.Setter;
