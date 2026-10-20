@@ -32,7 +32,7 @@ public class SalaryProcesser {
         for (int i = 0; i < employeeList.size(); i++) {
             final int empCounter = i;
 
-            executorService.submit(() -> {
+            executorService.execute(() -> {
                 try {
                     semaphore.acquire();
                 } catch (InterruptedException e) {
