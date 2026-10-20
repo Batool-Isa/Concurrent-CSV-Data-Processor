@@ -1,22 +1,19 @@
 package com.ga.data_processor.service;
-
-
 import com.ga.data_processor.model.Employee;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class SalaryProcesser {
     private final DataReader dataReader;
-    AtomicInteger employeeProcessedCounter = new AtomicInteger(0);
-    AtomicInteger getRaisedCounter = new AtomicInteger(0);
+    private final Semaphore semaphore = new Semaphore(2);
+
 
     public SalaryProcesser(DataReader dataReader) {
         this.dataReader = dataReader;
@@ -28,22 +25,32 @@ public class SalaryProcesser {
             System.out.println("No Employees found!!!");
             return;
         }
-
-        // create a new thread pool with only 3 reusable threads
-        ExecutorService executorService = Executors.newFixedThreadPool(3);
+        ProcessingStats stats = new ProcessingStats();
+        // create a new thread pool with only 5 reusable threads
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
 
         for (int i = 0; i < employeeList.size(); i++) {
             final int empCounter = i;
+
             executorService.submit(() -> {
+                try {
+                    semaphore.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+
+                    return;
+                }
+
                 try {
 
                     Employee emp = employeeList.get(empCounter);
                     System.out.println("Employee " + emp.getId() + " is being executed by thread: " + Thread.currentThread().getName());
                     double oldSal = emp.getSalary();
                     double salary = calculateRaise(emp);
-                    employeeProcessedCounter.incrementAndGet();
-                    if(salary > oldSal){
-                        getRaisedCounter.incrementAndGet();
+                    stats.recordProcessed();
+
+                    if (salary > oldSal) {
+                        stats.recordRaise(salary - oldSal);
                     }
                     emp.setProcessed(true);
                     emp.setSalary(salary);
@@ -53,6 +60,10 @@ public class SalaryProcesser {
 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                } catch (Exception e) {
+                    System.out.println("Failed to process employee at index " + empCounter + ": " + e.getMessage());
+                } finally {
+                    semaphore.release();
                 }
             });
         }
@@ -68,16 +79,12 @@ public class SalaryProcesser {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        System.out.println("All Employees Processed!");
-        System.out.println("Total Employees Processed: " + employeeProcessedCounter.get());
-        System.out.println("Total Salaries Modified: " + getRaisedCounter.get());
-        System.out.println("Total Employees with no raise: " + (employeeProcessedCounter.get() - getRaisedCounter.get()));
+        stats.printStats();
     }
 
 
-    public  double calculateRaise(Employee employee) {
+    public double calculateRaise(Employee employee) {
         double percentage = 0;
-        double total = 0;
         if (employee.getProjectPercentage() < 0.6) {
             percentage = 0;
         } else {
@@ -95,16 +102,16 @@ public class SalaryProcesser {
                 percentage += 0.01;
             } else if ("Manager".equals(position)) {
                 percentage += 0.02;
-            } else if("Director".equals(position)){
+            } else if ("Director".equals(position)) {
                 percentage += 0.05;
             }
 
-            if(employee.getProjectPercentage() > 0.8){
+            if (employee.getProjectPercentage() > 0.8) {
                 percentage *= 1.5;
             }
         }
-        total = employee.getSalary() + (employee.getSalary() * percentage);
-        return total;
+        return employee.getSalary() + (employee.getSalary() * percentage);
+
     }
 
 
